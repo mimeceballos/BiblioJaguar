@@ -67,7 +67,7 @@ function formatearPresupuesto(valor: number) {
     <div class="back-container">
 
       <RouterLink
-        to="/admin/sistemas"
+        to="/admin/prestamo"
         class="back-button"
       >
         <span class="back-icon">←</span>
@@ -97,7 +97,7 @@ function formatearPresupuesto(valor: number) {
       </p>
 
       <RouterLink
-        to="/admin/sistemas"
+        to="/admin/prestamo"
         class="return-button"
       >
         Regresar a Sistemas
@@ -485,7 +485,7 @@ function formatearPresupuesto(valor: number) {
         </span>
 
         <RouterLink
-          to="/admin/sistemas"
+          to="/admin/prestamo"
           class="footer-return"
         >
           ← Volver a la lista

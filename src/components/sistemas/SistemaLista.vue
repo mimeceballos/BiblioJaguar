@@ -30,10 +30,10 @@ interface UserProfile {
   name: string
   roleName: string
   permissions: {
-    sistemas: PermissionCode
-    usuarios: PermissionCode
-    roles: PermissionCode
-    historias: PermissionCode
+    prestamo: PermissionCode
+    compra: PermissionCode
+    devolucion: PermissionCode
+    audiolibros: PermissionCode
   }
 }
 
@@ -234,7 +234,7 @@ function cancelarEliminacion() {
                 -->
 
                 <RouterLink
-                  :to="`/admin/sistemas/${sistema.id}`"
+                  :to="`/admin/prestamo/${sistema.id}`"
                   class="action-btn view-btn"
                   title="Ver detalles del sistema"
                 >
@@ -249,7 +249,7 @@ function cancelarEliminacion() {
 
                 <RouterLink
                   v-if="isAdmin"
-                  :to="`/admin/sistemas/${sistema.id}/editar`"
+                  :to="`/admin/prestamo/${sistema.id}/editar`"
                   class="action-btn edit-btn"
                   title="Editar sistema"
                 >

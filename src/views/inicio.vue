@@ -10,13 +10,13 @@ type PermissionCode = 1 | 2 | 3
 
 interface UserProfile {
   email: string
-  name: string
+  name?: string
   roleName: string
   permissions: {
-    sistemas: PermissionCode
-    usuarios: PermissionCode
-    roles: PermissionCode
-    historias: PermissionCode
+    prestamo: PermissionCode
+    compra: PermissionCode
+    devolucion: PermissionCode
+    audiolibros: PermissionCode
   }
 }
 const isUserMenuOpen = ref(false)
@@ -30,6 +30,11 @@ function closeUserMenu() {
 }
 const currentUser = ref<UserProfile | null>(null)
 
+// El servidor no envía `name`: se usa el correo como respaldo
+const displayName = computed(
+  () => currentUser.value?.name || currentUser.value?.email || ''
+)
+
 onMounted(() => {
   const sessionData = localStorage.getItem('auth_user')
   if (sessionData) {
@@ -41,16 +46,9 @@ onMounted(() => {
 const activeModuleKey = computed(() => {
   const pathParts = route.path.split('/').filter(Boolean)
 
-  // Estructura esperada:
-  // /admin/sistemas
-  // /admin/sistemas/nuevo
-  // /admin/sistemas/:id
-  // /admin/sistemas/:id/editar
-  //
-  // El módulo siempre es el segundo segmento.
   return pathParts[0] === 'admin'
-    ? pathParts[1] || 'sistemas'
-    : 'sistemas'
+    ? pathParts[1] || 'prestamo'
+    : 'prestamo'
 })
 
 const currentModulePermission = computed<PermissionCode>(() => {
@@ -61,20 +59,20 @@ const currentModulePermission = computed<PermissionCode>(() => {
 
 provide('currentPermission', currentModulePermission)
 
-//  Menú Lateral
+//  MENU LATERAL
 const menuItems = computed(() => {
   const perms = currentUser.value?.permissions || {
-    sistemas: 1,
-    usuarios: 1,
-    roles: 1,
-    historias: 1
+    prestamo: 1,
+    compra: 1,
+    devolucion: 1,
+    audiolibros: 1
   }
 
   return [
-    { id: 1, name: 'Sistemas', route: '/admin/sistemas', level: perms.sistemas },
-    { id: 2, name: 'Usuarios', route: '/admin/usuarios', level: perms.usuarios },
-    { id: 3, name: 'Roles', route: '/admin/roles', level: perms.roles },
-    { id: 4, name: 'Historias', route: '/admin/historias', level: perms.historias }
+    { id: 1, name: 'Préstamo', route: '/admin/prestamo', level: perms.prestamo },
+    { id: 2, name: 'Compra', route: '/admin/compra', level: perms.compra },
+    { id: 3, name: 'Devolución', route: '/admin/devolucion', level: perms.devolucion },
+    { id: 4, name: 'Audiolibros', route: '/admin/audiolibros', level: perms.audiolibros }
   ]
 })
 
@@ -86,6 +84,7 @@ function handleLogout() {
 
 <template>
   <div class="admin-layout">
+
     <!-- PANEL IZQUIERDO -->
     <aside class="sidebar">
       <div class="brand">
@@ -126,10 +125,10 @@ function handleLogout() {
       :class="{ 'is-active': isUserMenuOpen }"
     >
       <div class="user-avatar">
-        {{ currentUser.name.charAt(0) }}
+        {{ displayName.charAt(0).toUpperCase() }}
       </div>
       <div class="user-details">
-        <span class="user-name">{{ currentUser.name }}</span>
+        <span class="user-name">{{ displayName }}</span>
         <span class="user-role">{{ currentUser.roleName }}</span>
       </div>
       <span class="dropdown-arrow">▾</span>
@@ -143,11 +142,6 @@ function handleLogout() {
       </div>
 
       <div class="dropdown-body">
-        <div class="info-row">
-          <span class="info-label">Nombre:</span>
-          <span class="info-value">{{ currentUser.name }}</span>
-        </div>
-
         <div class="info-row">
           <span class="info-label">Correo:</span>
           <span class="info-value">{{ currentUser.email }}</span>
@@ -164,27 +158,27 @@ function handleLogout() {
           <h5>Niveles de Permisos:</h5>
           <ul class="permissions-list">
             <li>
-              <span>Sistemas:</span>
-              <span class="perm-badge" :class="'perm-' + currentUser.permissions.sistemas">
-                {{ currentUser.permissions.sistemas === 1 ? 'Desactivo' : currentUser.permissions.sistemas === 2 ? 'Lectura' : 'Escritura' }}
+              <span>Préstamo:</span>
+              <span class="perm-badge" :class="'perm-' + currentUser.permissions.prestamo">
+                {{ currentUser.permissions.prestamo === 1 ? 'Desactivo' : currentUser.permissions.prestamo === 2 ? 'Lectura' : 'Escritura' }}
               </span>
             </li>
             <li>
-              <span>Usuarios:</span>
-              <span class="perm-badge" :class="'perm-' + currentUser.permissions.usuarios">
-                {{ currentUser.permissions.usuarios === 1 ? 'Desactivo' : currentUser.permissions.usuarios === 2 ? 'Lectura' : 'Escritura' }}
+              <span>Compra:</span>
+              <span class="perm-badge" :class="'perm-' + currentUser.permissions.compra">
+                {{ currentUser.permissions.compra === 1 ? 'Desactivo' : currentUser.permissions.compra === 2 ? 'Lectura' : 'Escritura' }}
               </span>
             </li>
             <li>
-              <span>Roles:</span>
-              <span class="perm-badge" :class="'perm-' + currentUser.permissions.roles">
-                {{ currentUser.permissions.roles === 1 ? 'Desactivo' : currentUser.permissions.roles === 2 ? 'Lectura' : 'Escritura' }}
+              <span>Devolución:</span>
+              <span class="perm-badge" :class="'perm-' + currentUser.permissions.devolucion">
+                {{ currentUser.permissions.devolucion === 1 ? 'Desactivo' : currentUser.permissions.devolucion === 2 ? 'Lectura' : 'Escritura' }}
               </span>
             </li>
             <li>
-              <span>Historias:</span>
-              <span class="perm-badge" :class="'perm-' + currentUser.permissions.historias">
-                {{ currentUser.permissions.historias === 1 ? 'Desactivo' : currentUser.permissions.historias === 2 ? 'Lectura' : 'Escritura' }}
+              <span>Audiolibros:</span>
+              <span class="perm-badge" :class="'perm-' + currentUser.permissions.audiolibros">
+                {{ currentUser.permissions.audiolibros === 1 ? 'Desactivo' : currentUser.permissions.audiolibros === 2 ? 'Lectura' : 'Escritura' }}
               </span>
             </li>
           </ul>
@@ -201,13 +195,150 @@ function handleLogout() {
   </div>
 </template>
 
+
 <style scoped>
 .admin-layout {
+  --navy-3: #0a1b33;
+  --navy-2: #12305a;
+  --navy-1: #1f4a82;
+  --yellow-1: #f7b801;
+  --yellow-2: #ffd54a;
+  --yellow-3: #fce59a;
+  --bg: #eef2f8;
+  --text: #0a1b33;
+  --muted: #5b6b82;
+
   display: flex;
   min-height: 100vh;
-  background-color: #f6f3cf;
+  background-color: var(--bg);
+  color: var(--text);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+
+/* PANEL IZQUIERDO */
+.sidebar {
+  width: 260px;
+  background-color: var(--navy-2);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 0 18px 24px;
+  box-shadow: 4px 0 20px -8px rgba(10, 27, 51, 0.45);
+}
+
+.brand {
+  margin: 0 -18px 28px;
+  padding: 30px 18px 29px;
+  background: var(--navy-2);
+  border-bottom: 1px solid var(--yellow-1);
+  text-align: center;
+}
+
+.brand h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ffffff;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px -12px rgba(0, 0, 0, 0.6);
+}
+
+.menu-item.router-link-active {
+  background: var(--yellow-1);
+  color: var(--navy-3);
+}
+
+.menu-item.is-readonly.router-link-active {
+  background: var(--yellow-3);
+}
+
+/* BOLITAS DE PERMISO */
+.badge {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.badge-read {
+  background-color: var(--yellow-2);
+}
+
+.badge-write {
+  background-color: #5fd08a;
+}
+
+.logout-btn {
+  margin-top: auto;
+  padding: 12px;
+  background: transparent;
+  color: var(--yellow-2);
+  border: 2px solid var(--yellow-1);
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.logout-btn:hover {
+  background: var(--yellow-1);
+  color: var(--navy-3);
+}
+
+/* CONTENEDOR DERECHO */
+.main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.top-header {
+  height: 70px;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 16px;
+  border-bottom: 1px solid var(--yellow-1);
+  box-shadow: 0 8px 20px -14px rgba(10, 27, 51, 0.45);
+}
+
+.content {
+  flex: 1;
+  padding: 32px;
+}
+
+/* USUARIO */
 .user-menu-wrapper {
   position: relative;
 }
@@ -216,37 +347,65 @@ function handleLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fffde1;
-  padding: 6px 14px;
-  border-radius: 30px;
-  border: 1px solid #f2eab4;
+  background: #f8fafd;
+  padding: 6px 16px 6px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--navy-2);
   cursor: pointer;
-  transition: all 0.2s ease;
+  font: inherit;
   outline: none;
 }
 
 .user-card-top:hover,
 .user-card-top.is-active {
-  background: #f7f3be;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: var(--yellow-3);
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--navy-2);
+  color: var(--yellow-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy-3);
+}
+
+.user-role {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .dropdown-arrow {
   font-size: 12px;
-  color: #4d6787;
-  margin-left: 4px;
+  color: var(--navy-2);
 }
 
 .user-dropdown-card {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 12px);
   right: 0;
-  width: 280px;
+  width: 290px;
   background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
-  border: 1px solid #eef2f6;
-  padding: 18px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px -20px rgba(10, 27, 51, 0.45);
   z-index: 100;
   animation: fadeIn 0.2s ease-out;
 }
@@ -260,51 +419,61 @@ function handleLogout() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
+  padding: 14px 18px;
+  background: var(--navy-2);
+  border-bottom: 4px solid var(--yellow-1);
 }
 
 .dropdown-header h4 {
   margin: 0;
   font-size: 14px;
-  color: #4d6787;
-  font-weight: 700;
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.5px;
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--yellow-2);
   cursor: pointer;
   font-size: 14px;
+}
+
+.dropdown-body {
+  padding: 18px;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   font-size: 13px;
   margin-bottom: 8px;
 }
 
 .info-label {
-  color: #777;
-  font-weight: 500;
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .info-value {
-  color: #1a1a1a;
+  color: var(--navy-3);
   font-weight: 700;
+  word-break: break-all;
+  text-align: right;
 }
 
 .divider {
   border: none;
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed #d3dbe8;
   margin: 12px 0;
 }
 
 .permissions-section h5 {
   margin: 0 0 10px;
   font-size: 12px;
-  color: #4d6787;
+  color: var(--navy-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -323,173 +492,17 @@ function handleLogout() {
   justify-content: space-between;
   align-items: center;
   font-size: 12px;
-  color: #444;
+  color: var(--navy-3);
 }
 
 .perm-badge {
   font-size: 10px;
   padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 700;
-}
-
-.perm-1 { background-color: #fee2e2; color: #991b1b; } /* Desactivo */
-.perm-2 { background-color: #fef3c7; color: #92400e; } /* Lectura */
-.perm-3 { background-color: #d1fae5; color: #065f46; } /* Escritura */
-.sidebar {
-  width: 260px;
-  background-color: #4d6787;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  padding: 24px 18px;
-  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
-}
-
-.brand h2 {
-  margin: 0 0 30px;
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: #fffde1;
-  text-align: center;
-}
-
-.menu {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1;
-}
-
-.menu-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
-
-.menu-item:hover {
-  background: rgba(255, 255, 255, 0.22);
-  transform: translateX(3px);
-}
-
-.menu-item.router-link-active {
-  background: #cfebff;
-  color: #4d6787;
-}
-
-.menu-item.is-readonly.router-link-active {
-  background: #e3e8f0;
-}
-
-/* BADGES PASTEL */
-.badge {
-  font-size: 11px;
-  padding: 3px 8px;
   border-radius: 6px;
-  font-weight: 700;
-}
-
-.badge-read {
-  background-color: #fca5a5;
-  color: #7f1d1d;
-}
-
-.badge-write {
-  background-color: #d9efbd;
-  color: #2d5a1e;
-}
-
-.logout-btn {
-  margin-top: auto;
-  padding: 12px;
-  background: #fdc086;
-  color: #4a2810;
-  border: none;
-  border-radius: 10px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.logout-btn:hover {
-  background: #fdb068;
-}
-
-/* CONTENEDOR DERECHO */
-.main-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.top-header {
-  height: 70px;
-  background: #ffffff;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 36px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-}
-
-.current-view-name {
-  font-weight: 700;
-  color: #4d6787;
-  font-size: 15px;
-  letter-spacing: 0.5px;
-}
-
-.user-card-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #fffde1;
-  padding: 6px 14px;
-  border-radius: 30px;
-  border: 1px solid #f2eab4;
-}
-
-.user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #cfebff;
-  color: #4d6787;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-weight: 800;
-  font-size: 16px;
 }
 
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.user-role {
-  font-size: 11px;
-  color: #a5af79;
-  font-weight: 600;
-}
-
-.content {
-  flex: 1;
-  padding: 32px;
-}
+.perm-1 { background-color: #fde2e0; color: #b3261e; }
+.perm-2 { background-color: var(--yellow-3); color: #6b4e00; }
+.perm-3 { background-color: #d6f3e1; color: #14532d; }
 </style>

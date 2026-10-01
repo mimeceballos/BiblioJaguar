@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 interface LoginForm {
@@ -19,12 +19,15 @@ export interface UserProfile {
   name: string
   roleName: string
   permissions: {
-    sistemas: PermissionCode
-    usuarios: PermissionCode
-    roles: PermissionCode
-    historias: PermissionCode
+    prestamo: PermissionCode
+    compra: PermissionCode
+    devolucion: PermissionCode
+    audiolibros: PermissionCode
   }
 }
+
+type View = 'choose' | 'externos' | 'uady'
+type UadyRole = 'Alumno' | 'Maestro'
 
 const emit = defineEmits<{
   (e: 'login-success', payload: LoginPayload): void
@@ -32,60 +35,59 @@ const emit = defineEmits<{
 
 const router = useRouter()
 
-// --- MINI BASE ---
-const MOCK_USERS: Record<string, { pass: string; profile: UserProfile }> = {
-  // Usuario 1: Todos los permisos (3)
-  'administrador1@gmail.com': {
-    pass: 'Admin123',
-    profile: {
-      email: 'administrador1@gmail.com',
-      name: 'Alejandro Góngora',
-      roleName: 'Administrador',
-      permissions: { sistemas: 3, usuarios: 3, roles: 3, historias: 3 }
-    }
-  },
-  // Usuario 2: Permisos de Escritura, Lectura y Desactivado
-  'usr2@gmail.com': {
-    pass: 'usr123',
-    profile: {
-      email: 'usr2@gmail.com',
-      name: 'Juan Perez',
-      roleName: 'Usuario del Sistema',
-      permissions: { sistemas: 3, usuarios: 2, roles: 1, historias: 2 }
-    }
-  },
-  // Usuario 3: Solo Lectura general (2) o Desactivados (1)
-  'usr3@gmail.com': {
-    pass: 'usr123',
-    profile: {
-      email: 'usr3@gmail.com',
-      name: 'María Perez',
-      roleName: 'Externo',
-      permissions: { sistemas: 2, usuarios: 2, roles: 1, historias: 1 }
-    }
-  }
-}
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const ALUMNO_REGEX = /^A\d{8}$/i 
+const MAESTRO_REGEX = /^[a-záéíóúüñ]+\.[a-záéíóúüñ]+$/i 
 
-const form = reactive<LoginForm>({
-  email: '',
-  password: '',
-})
-
+const view = ref<View>('choose')
+const form = reactive<LoginForm>({ email: '', password: '' })
 const errors = reactive<Partial<Record<keyof LoginForm, string>>>({})
 const showPassword = ref(false)
 const isLoading = ref(false)
 const serverError = ref('')
 const successMessage = ref('')
 
-function validate(): boolean {
+// Quita un dominio institucional opcional: A23211341@alumnos.uady.mx -> A23211341
+function cleanUadyUser(raw: string): string {
+  return raw.trim().replace(/@(alumnos\.|correo\.)?uady\.mx$/i, '')
+}
+
+
+function detectUadyRole(raw: string): UadyRole | null {
+  const user = cleanUadyUser(raw)
+  if (ALUMNO_REGEX.test(user)) return 'Alumno'
+  if (MAESTRO_REGEX.test(user)) return 'Maestro'
+  return null
+}
+
+const detectedRole = computed(() =>
+  view.value === 'uady' ? detectUadyRole(form.email) : null,
+)
+
+function resetMessages(): void {
   errors.email = ''
   errors.password = ''
+  serverError.value = ''
+  successMessage.value = ''
+}
+
+function goTo(next: View): void {
+  form.email = ''
+  form.password = ''
+  showPassword.value = false
+  resetMessages()
+  view.value = next
+}
+
+function validate(): boolean {
+  resetMessages()
   let valid = true
 
   if (!form.email.trim()) {
-    errors.email = 'El correo es obligatorio'
+    errors.email =
+      view.value === 'externos' ? 'El correo es obligatorio' : 'El usuario o correo es obligatorio'
     valid = false
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+  } else if (view.value === 'externos' && !EMAIL_REGEX.test(form.email.trim())) {
     errors.email = 'Ingresa un correo válido'
     valid = false
   }
@@ -98,6 +100,30 @@ function validate(): boolean {
   return valid
 }
 
+// Envía las credenciales a la API y devuelve el perfil si son correctas.
+async function authenticate(): Promise<UserProfile> {
+  let response: Response
+  try {
+    response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identificador: form.email.trim(),
+        password: form.password,
+        modo: view.value,
+      }),
+    })
+  } catch {
+    throw new Error('No se pudo conectar con el servidor')
+  }
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(data.message ?? 'Ocurrió un error al iniciar sesión')
+  }
+  return data as UserProfile
+}
+
 async function handleSubmit(): Promise<void> {
   serverError.value = ''
   successMessage.value = ''
@@ -107,20 +133,11 @@ async function handleSubmit(): Promise<void> {
   isLoading.value = true
 
   try {
-    await new Promise((resolve) => setTimeout(resolve, 600))
+    const profile = await authenticate()
+    localStorage.setItem('auth_user', JSON.stringify(profile))
 
-    const account = MOCK_USERS[form.email.trim()]
-
-    if (!account) {
-      throw new Error('El correo electrónico es incorrecto')
-    } else if (account.pass !== form.password) {
-      throw new Error('La contraseña es incorrecta')
-    }
-
-    localStorage.setItem('auth_user', JSON.stringify(account.profile))
-
-    successMessage.value = 'usuario correcto'
-    emit('login-success', { email: form.email })
+    successMessage.value = `Bienvenido, ${profile.roleName}`
+    emit('login-success', { email: profile.email })
 
     setTimeout(() => {
       router.push('/admin')
@@ -132,238 +149,246 @@ async function handleSubmit(): Promise<void> {
     isLoading.value = false
   }
 }
-
-function fillCredentials(email: string): void {
-  const account = MOCK_USERS[email]
-  if (!account) return
-  form.email = email
-  form.password = account.pass
-
-  errors.email = ''
-  errors.password = ''
-  serverError.value = ''
-  successMessage.value = ''
-}
-
 </script>
 
+
 <template>
-  
   <section class="login-page">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
+    <div class="login-card">
+      
+      <header class="card-header">
+        <h1 class="brand">BiblioJaguar</h1>
+        <p class="brand-sub">Administrador de Proyectos</p>
+      </header>
 
-    <div class="page-header">
-      <h2 class="page-title">Administrador de Proyectos</h2>
-    </div>
+      <div class="card-body">
+        
+        
+        <div v-if="view === 'choose'" class="choose">
+          <h2 class="view-title">Bienvenido</h2>
+          <p class="view-subtitle">Selecciona cómo quieres ingresar</p>
 
-    
-    <form class="login-card" novalidate @submit.prevent="handleSubmit">
-      <div class="login-form-side">
-        <h1 class="login-title">Login de Usuarios</h1>
-        <p class="login-subtitle">Ingrese sus datos</p>
-
-        <div class="quick-login">
-          <button
-            type="button"
-            class="quick-login-btn"
-            @click="fillCredentials('administrador1@gmail.com')"
-          >
-          Administrador
+          <button type="button" class="choice-btn choice-uady" @click="goTo('uady')">
+            <span class="choice-name">UADY</span>
+            <span class="choice-desc">Alumnos, maestros y bibliotecarios</span>
           </button>
-          <button
-            type="button"
-            class="quick-login-btn"
-            @click="fillCredentials('usr2@gmail.com')"
-          >
-          Usuario del Sistema
-          </button>
-          <button
-            type="button"
-            class="quick-login-btn"
-            @click="fillCredentials('usr3@gmail.com')"
-          >
-          Externo
+
+          <button type="button" class="choice-btn choice-externos" @click="goTo('externos')">
+            <span class="choice-name">Externos</span>
+            <span class="choice-desc">Usuarios ajenos a la universidad</span>
           </button>
         </div>
 
-        <!-- Campo Email -->
-        <div class="field">
-          <label for="email">Email</label>
-          <input
-            id="email"
-            v-model="form.email"
-            type="email"
-            autocomplete="email"
-            placeholder="correo@ejemplo.com"
-            :class="{ invalid: errors.email }"
-          />
-          <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
-        </div>
+        
+        <form v-else novalidate @submit.prevent="handleSubmit">
+          <button type="button" class="back-btn" @click="goTo('choose')">← Volver</button>
 
-        <!-- Campo Contraseña -->
-        <div class="field">
-          <label for="password">Contraseña</label>
-          <div class="password-wrapper">
+          <h2 class="view-title">
+            {{ view === 'externos' ? 'Acceso Externos' : 'Acceso UADY' }}
+          </h2>
+          <p class="view-subtitle">Ingresa tus datos</p>
+
+          <!-- Correo / usuario -->
+          <div class="field">
+            <label for="email">
+              {{ view === 'externos' ? 'Correo' : 'Correo o usuario' }}
+            </label>
             <input
-              id="password"
-              v-model="form.password"
-              :type="showPassword ? 'text' : 'password'"
-              autocomplete="current-password"
-              placeholder="Escribe tu contraseña"
-              :class="{ invalid: errors.password }"
+              id="email"
+              v-model="form.email"
+              :type="view === 'externos' ? 'email' : 'text'"
+              :autocomplete="view === 'externos' ? 'email' : 'username'"
+              :class="{ invalid: errors.email }"
             />
-            <button
-              type="button"
-              class="toggle-password"
-              :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-              @click="showPassword = !showPassword"
-            >
-              {{ showPassword ? 'Ocultar' : 'Ver' }}
-            </button>
+            <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
+            <span v-else-if="detectedRole" class="role-hint">
+              Se detectó: <strong>{{ detectedRole }}</strong>
+            </span>
           </div>
-          <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
-        </div>
 
-        <!-- Mensajes de error específicos -->
-        <p v-if="serverError" class="server-error">{{ serverError }}</p>
+          <!-- Contraseña -->
+          <div class="field">
+            <label for="password">Contraseña</label>
+            <div class="password-wrapper">
+              <input
+                id="password"
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                autocomplete="current-password"
+                placeholder="Escribe tu contraseña"
+                :class="{ invalid: errors.password }"
+              />
+              <button
+                type="button"
+                class="toggle-password"
+                :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                @click="showPassword = !showPassword"
+              >
+                {{ showPassword ? 'Ocultar' : 'Ver' }}
+              </button>
+            </div>
+            <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
+          </div>
 
-        <!-- Mensaje de éxito -->
-        <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
+          <p v-if="serverError" class="server-error">{{ serverError }}</p>
+          <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
 
-        <button type="submit" class="submit-btn" :disabled="isLoading">
-          {{ isLoading ? 'Ingresando...' : 'Login' }}
-        </button>
+          <button type="submit" class="submit-btn" :disabled="isLoading">
+            {{ isLoading ? 'Ingresando...' : 'Iniciar sesión' }}
+          </button>
+        </form>
       </div>
-
-      <div class="login-image-side">
-        <div class="side-blob side-blob-1"></div>
-        <div class="side-blob side-blob-2"></div>
-        <div class="side-blob side-blob-3"></div>
-      </div>
-    </form>
+    </div>
   </section>
 </template>
 
 <style scoped>
+/* Paleta: azul marino + amarillo */
 .login-page {
+  --navy-3: #0a1b33;
+  --navy-2: #12305a;
+  --navy-1: #1f4a82;
+  --yellow-1: #f7b801;
+  --yellow-2: #ffd54a;
+  --yellow-3: #FCE59A;
+  --bg: #eef2f8;
+  --text: #0a1b33;
+  --muted: #5b6b82;
+  --danger: #b3261e;
+
   position: relative;
   flex-grow: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  padding: 2px 60px 20px;
+  padding: 32px 20px;
   box-sizing: border-box;
-  overflow: hidden;
-  background: #F2F2F2;
-  isolation: isolate;
-}
-
-.page-header {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 50px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: #000000;
 }
 
 .login-card {
-  position: relative;
-  z-index: 1;
   width: 100%;
-  max-width: 860px;
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
+  max-width: 420px;
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 18px;
   overflow: hidden;
-  min-height: 520px;
+  box-shadow: 0 20px 50px -20px rgba(10, 27, 51, 0.45);
+  text-align: left;
 }
 
-.login-form-side {
-  flex: 1 1 50%;
+/* TITULO */
+.card-header {
+  position: relative;
+  padding: 30px 28px 26px;
+  text-align: center;
+  background: var(--navy-2);
+  border-bottom: 5px solid var(--yellow-1);
+}
+
+.brand {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffffff;
+}
+
+.brand-sub {
+  margin: 10px 0 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--yellow-1);
+}
+
+.card-body {
+  padding: 28px 32px 32px;
+}
+
+.view-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--navy-3);
+}
+
+.view-subtitle {
+  margin: 0 0 24px;
+  font-size: 14px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* BOTONES PARA ENTRAR */
+.choose {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  text-align: left;
-  padding: 40px 44px;
-  box-sizing: border-box;
 }
 
-.login-image-side {
-  position: relative;
-  flex: 1 1 50%;
+.choice-btn {
+  font: inherit;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #EFEFEF;
-  overflow: hidden;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  border: 2px solid transparent;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
 }
 
-.side-blob {
-  position: absolute;
-  z-index: 0;
+.choice-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px -12px rgba(10, 27, 51, 0.6);
 }
 
-.side-blob-1 {
-  top: -12%;
-  left: -15%;
-  width: 70%;
-  height: 60%;
-  background: #EAA2E5;
-  opacity: 0.9;
-  border-radius: 42% 58% 65% 35% / 45% 40% 60% 55%;
-}
-
-.side-blob-2 {
-  bottom: -18%;
-  right: -12%;
-  width: 65%;
-  height: 55%;
-  background: #5F0032;
-  opacity: 0.85;
-  border-radius: 60% 40% 30% 70% / 55% 65% 35% 45%;
-}
-
-.side-blob-3 {
-  bottom: 10%;
-  left: 5%;
-  width: 40%;
-  height: 30%;
-  background: #E8F9A2;
-  opacity: 0.5;
-  border-radius: 55% 45% 60% 40% / 40% 55% 45% 60%;
-}
-
-.login-title {
-  margin: 0 0 4px;
-  font-size: 26px;
+.choice-name {
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
+  color: var(--navy-2);
   text-transform: uppercase;
-  text-align: center;
-  color: #1a1a1a;
 }
 
-.login-subtitle {
-  margin: 0 0 28px;
+.choice-desc {
   font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-align: center;
-  color: #5F0032;
+  color: var(--navy-2);
+  opacity: 0.85;
 }
 
+.choice-uady {
+  color: var(--navy-3);
+  border-color: var(--navy-2);
+}
+
+.choice-externos {
+  color: var(--navy-2);
+  border-color: var(--navy-2);
+}
+
+/* VOVLER */
+.back-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  padding: 2px 13px;
+  color: var(--navy-3);
+  background: var(--yellow-3);
+  border-radius: 15px;
+  border: 1.5px solid #ffff;
+  cursor: pointer;
+}
+
+.back-btn:hover {
+  color: var(--navy-2);
+  text-decoration: underline;
+}
+
+/* DATOS PARA ENTRAR */
 .field {
   display: flex;
   flex-direction: column;
@@ -372,8 +397,8 @@ function fillCredentials(email: string): void {
 
 .field label {
   font-size: 13px;
-  font-weight: 500;
-  color: #555151;
+  font-weight: 600;
+  color: var(--navy-3);
   margin-bottom: 6px;
 }
 
@@ -382,61 +407,67 @@ function fillCredentials(email: string): void {
 .field input[type='text'] {
   font: inherit;
   font-size: 15px;
-  padding: 6px 2px 8px;
-  border: none;
-  border-bottom: 1.5px solid #4D6787;
-  background: transparent !important;
-  color: #1a1a1a !important;
+  padding: 10px 12px;
+  border: 1.5px solid #0e0868;
+  border-radius: 10px;
+  background: #f8fafd !important;
+  color: var(--text) !important;
   outline: none;
   box-sizing: border-box;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .field input:-webkit-autofill,
-.field input:-webkit-autofill:hover, 
-.field input:-webkit-autofill:focus, 
+.field input:-webkit-autofill:hover,
+.field input:-webkit-autofill:focus,
 .field input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
-  -webkit-text-fill-color: #1a1a1a !important;
+  -webkit-box-shadow: 0 0 0 30px #f8fafd inset !important;
+  -webkit-text-fill-color: #0a1b33 !important;
   transition: background-color 5000s ease-in-out 0s;
 }
 
 .field input:focus {
-  border-bottom-color: #D46D25;
-  background: transparent !important;
-  outline: none;
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 3px rgba(247, 184, 1, 0.3);
 }
 
 .field input.invalid {
-  border-bottom-color: #D46D25;
+  border-color: var(--danger);
 }
 
 .error-text {
   margin-top: 6px;
   font-size: 13px;
-  color: #D46D25;
+  color: var(--danger);
+}
+
+.role-hint {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--navy-500);
 }
 
 .password-wrapper {
   position: relative;
   display: flex;
+  flex-direction: column;
 }
 
 .password-wrapper input {
   flex: 1;
-  padding-right: 60px;
+  padding-right: 70px;
 }
 
 .toggle-password {
   position: absolute;
-  right: 0;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   background: none !important;
   border: none !important;
-  color: #4D6787 !important;
+  color: var(--navy-500) !important;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   padding: 4px 6px;
   outline: none !important;
@@ -446,55 +477,54 @@ function fillCredentials(email: string): void {
 
 .toggle-password:focus,
 .toggle-password:active {
-  color: #4D6787 !important;
   outline: none !important;
   background: none !important;
 }
 
+/* MENSAJES SI ENTRA O NO */
 .server-error {
-  background: rgba(212, 109, 37, 0.12);
-  border: 1px solid #D46D25;
-  color: #b05111;
+  background: rgba(179, 38, 30, 0.08);
+  border: 1px solid var(--danger);
+  color: var(--danger);
   padding: 10px 12px;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
   margin: 0 0 18px;
   text-align: center;
 }
 
 .success-message {
-  background: rgba(104, 157, 75, 0.15);
-  border: 1px solid #689D4B;
-  color: #3b6624;
+  background: rgba(31, 122, 76, 0.1);
+  border: 1px solid #1f7a4c;
+  color: #175c39;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 700;
   margin: 0 0 18px;
   text-align: center;
-  text-transform: lowercase;
 }
 
+/* BOTON PRINCIPAL */
 .submit-btn {
   font: inherit;
+  width: 100%;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #FFFF;
-  background: #99154E;
+  color: var(--navy-3);
+  background: var(--yellow-2);
   border: none;
   border-radius: 999px;
   padding: 13px;
   cursor: pointer;
-  box-shadow: 0 0px 20px -6px rgb(255, 230, 230)
-  ;
-  transition: opacity 0.2s, transform 0.15s;
+  transition: background 0.2s, transform 0.15s;
 }
 
 .submit-btn:hover:not(:disabled) {
-  opacity: 0.92;
+  background: var(--yellow-3);
   transform: translateY(-1px);
 }
 
@@ -503,42 +533,9 @@ function fillCredentials(email: string): void {
   cursor: not-allowed;
 }
 
-/* BOTONES NUEVOS */
-.quick-login {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.quick-login-btn {
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: #5F0032;
-  background: #E8F9A2;
-  border: 1.5px solid #FFFF;
-  border-radius: 999px;
-  padding: 6px 14px;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
-}
-
-.quick-login-btn:hover {
-  background: #EAA2E5;
-  transform: translateY(-1px);
-}
-
-@media (max-width: 720px) {
-  .login-card {
-    flex-direction: column;
-    min-height: auto;
-  }
-
-  .login-image-side {
-    min-height: 200px;
-    order: -1;
+@media (max-width: 480px) {
+  .card-body {
+    padding: 24px 20px 28px;
   }
 }
 </style>

@@ -1,61 +1,48 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import LogIn from '../components/LogIn.vue' 
-// import adminView from '../views/adminView.vue' 
-import inicio from '../views/inicio.vue' 
+import LogIn from '../components/LogIn.vue'
+import inicio from '../views/inicio.vue'
 
-import historias from '../views/principal/Historias.vue'
-import sistemas from '../views/principal/Sistemas.vue'
-import roles from '../views/principal/Roles.vue'
-import usuarios from '../views/principal/Usuarios.vue'
+import Prestamo from '../views/principal/Prestamo.vue'
+import Compra from '../views/principal/Compra.vue'
+import Devolucion from '../views/principal/Devolucion.vue'
+import AudioLibros from '../views/principal/AudioLibros.vue'
 
-// Componentes internos de Sistemas
+// Componentes internos de Préstamo
 import SistemaLista from '../components/sistemas/SistemaLista.vue'
 import SistemaDetalle from '../components/sistemas/SistemaDetalle.vue'
 import SistemaForm from '../components/sistemas/SistemaForm.vue'
 
 const routes = [
   { path: '/', name: 'login', component: LogIn },
-  { path: '/admin', name: 'admin', component: inicio },
 
-    // Módulos existentes de los compañeros
-  {path: '/admin/historias', name:'historias', component:historias},
-  {path: '/admin/roles', name:'roles', component:roles},
-  {path: '/admin/usuarios', name:'usuarios', component:usuarios},
-
-   // Nuevo Módulo para enrutar Sistemas
+  // inicio.vue es el layout (menú lateral + cabecera).
+  // Todas las secciones son hijas de /admin para que se muestren
+  // dentro de su <router-view>.
   {
-    path: '/admin/sistemas',
-    name: 'sistemas',
-    component: sistemas,
-
+    path: '/admin',
+    component: inicio,
+    redirect: '/admin/prestamo',
     children: [
       {
-        path: '',
-        name: 'sistemas-lista',
-        component: SistemaLista
+        path: 'prestamo',
+        component: Prestamo,
+        children: [
+          { path: '', name: 'prestamo-lista', component: SistemaLista },
+          { path: 'nuevo', name: 'prestamo-nuevo', component: SistemaForm },
+          { path: ':id', name: 'prestamo-detalle', component: SistemaDetalle },
+          { path: ':id/editar', name: 'prestamo-editar', component: SistemaForm },
+        ],
       },
-      {
-        path: 'nuevo',
-        name: 'sistemas-nuevo',
-        component: SistemaForm
-      },
-      {
-        path: ':id',
-        name: 'sistemas-detalle',
-        component: SistemaDetalle
-      },
-      {
-        path: ':id/editar',
-        name: 'sistemas-editar',
-        component: SistemaForm
-      }
-    ]
-  }
+      { path: 'compra', name: 'compra', component: Compra },
+      { path: 'devolucion', name: 'devolucion', component: Devolucion },
+      { path: 'audiolibros', name: 'audiolibros', component: AudioLibros },
+    ],
+  },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
 })
 
 export default router
