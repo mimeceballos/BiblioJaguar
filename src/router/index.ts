@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import LogIn from '../components/LogIn.vue'
-import inicio from '../views/inicio.vue'
+import inicio from '../views/inicio.vue' // Layout principal (menú + header)
+
+// Import de tu nueva vista Inicio.vue
+import Inicio from '../views/principal/Inicio.vue'
 
 import Prestamo from '../views/principal/Prestamo.vue'
 import Compra from '../views/principal/Compra.vue'
@@ -15,14 +18,16 @@ import SistemaForm from '../components/sistemas/SistemaForm.vue'
 const routes = [
   { path: '/', name: 'login', component: LogIn },
 
-  // inicio.vue es el layout (menú lateral + cabecera).
-  // Todas las secciones son hijas de /admin para que se muestren
-  // dentro de su <router-view>.
   {
     path: '/admin',
     component: inicio,
-    redirect: '/admin/prestamo',
+    redirect: '/admin/inicio', // Al entrar a /admin te envía directamente a inicio
     children: [
+      {
+        path: 'inicio',
+        name: 'inicio',
+        component: Inicio
+      },
       {
         path: 'prestamo',
         component: Prestamo,

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, inject } from 'vue'
-import { RouterLink } from 'vue-router'
 import type { Ref } from 'vue'
 
 type PermissionCode = 1 | 2 | 3
@@ -23,16 +22,15 @@ const selectedBook = ref({
   isbn: '978-0307474728',
   coverUrl: 'https://m.media-amazon.com/images/I/71YoFJSz3LL.jpg',
   synopsis:
-    'Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar aquella tarde remota en que su padre lo llevó a conocer el hielo. Macondo era entonces una aldea de veinte casas de barro y cañabrava construidas a la orilla de un río de aguas diáfanas...',
+    'Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar aquella tarde remota en que su padre lo llevó a conocer el hielo...',
   price: 299.00
 })
 
 // Estados de la vista
 const isLoanModalOpen = ref(false)
-const isBuyModalOpen = ref(false)
 const activeNotification = ref<{ type: 'success' | 'info' | 'warning'; text: string } | null>(null)
 
-// Estado del Préstamo Activo (Confirmación en Pantalla)
+// Estado del Préstamo Activo
 const activeLoanInfo = ref<{
   startDate: string
   endDate: string
@@ -96,15 +94,6 @@ const downloadSample = () => {
   URL.revokeObjectURL(url)
   showNotification('Descargando fragmento de muestra en tu dispositivo...', 'info')
 }
-
-const buyBook = () => {
-  isBuyModalOpen.value = true
-}
-
-const confirmPurchase = () => {
-  isBuyModalOpen.value = false
-  showNotification('¡Compra realizada con éxito! Recibirás la factura por correo.', 'success')
-}
 </script>
 
 <template>
@@ -129,7 +118,7 @@ const confirmPurchase = () => {
       </div>
     </header>
 
-    <!-- MENSAJE DE NOTIFICACIÓN / ALERTA DE PANTALLA -->
+    <!-- MENSAJE DE NOTIFICACIÓN -->
     <div v-if="activeNotification" :class="['screen-alert', activeNotification.type]">
       <span>{{ activeNotification.text }}</span>
       <button class="close-alert-btn" @click="activeNotification = null">✕</button>
@@ -139,7 +128,7 @@ const confirmPurchase = () => {
     <main class="module-content">
       <div v-if="selectedBook" class="book-detail-container">
 
-        <!-- RESUMEN EN PANTALLA DE PRÉSTAMO ACTIVO (SI EXISTE) -->
+        <!-- RESUMEN EN PANTALLA DE PRÉSTAMO ACTIVO -->
         <div v-if="activeLoanInfo" class="active-loan-banner">
           <div class="banner-info">
             <span class="badge-status"> Estado: Prestado</span>
@@ -174,21 +163,7 @@ const confirmPurchase = () => {
                 :disabled="!!activeLoanInfo"
                 @click="openLoanModal"
               >
-                <span class="btn-icon"></span>
                 <span>{{ activeLoanInfo ? 'Libro ya Prestado' : 'Prestar Libro' }}</span>
-              </button>
-<!--
-              <button
-                class="btn btn-secondary action-btn"
-                @click="returnBook"
-              >
-                <span class="btn-icon"></span>
-                <span>Devolver Libro</span>
-              </button>
--->
-              <button class="btn btn-secondary action-btn" @click="buyBook">
-                <span class="btn-icon"></span>
-                <span>Comprar (${{ selectedBook.price }} MXN)</span>
               </button>
 
               <button class="btn btn-outline action-btn" @click="downloadSample">
@@ -198,7 +173,7 @@ const confirmPurchase = () => {
           </div>
         </div>
 
-        <!-- datos del libro -->
+        <!-- FICHA TÉCNICA -->
         <div class="book-details-section">
           <h3>Ficha Técnica</h3>
           <div class="details-grid">
@@ -233,13 +208,12 @@ const confirmPurchase = () => {
       </div>
     </main>
 
-    <!-- REGISTRAR PRÉSTAMO -->
+    <!-- MODAL DE PRÉSTAMO -->
     <div v-if="isLoanModalOpen" class="modal-overlay" @click.self="isLoanModalOpen = false">
       <div class="modal-card">
         <h3>Registrar Préstamo</h3>
         <p class="modal-subtitle">Selecciona el plazo deseado y la fecha inicial:</p>
 
-        <!-- Selección de Días (Visible y contrastado) -->
         <div class="form-group">
           <label>Duración del préstamo:</label>
           <div class="duration-options">
@@ -255,7 +229,6 @@ const confirmPurchase = () => {
           </div>
         </div>
 
-        <!-- Selector de Fecha de Inicio (Claro) -->
         <div class="form-group">
           <label for="start-date">Fecha de inicio:</label>
           <input
@@ -266,7 +239,6 @@ const confirmPurchase = () => {
           />
         </div>
 
-        <!-- Resumen con fecha final -->
         <div class="loan-summary">
           <span>Fecha límite de devolución:</span>
           <strong class="summary-date">{{ endDate }}</strong>
@@ -275,25 +247,6 @@ const confirmPurchase = () => {
         <div class="modal-actions">
           <button class="btn btn-outline" @click="isLoanModalOpen = false">Cancelar</button>
           <button class="btn btn-primary" @click="confirmLoan">Confirmar Préstamo</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- COMPRA -->
-    <div v-if="isBuyModalOpen" class="modal-overlay" @click.self="isBuyModalOpen = false">
-      <div class="modal-card">
-        <h3>Comprar Libro</h3>
-        <p class="modal-subtitle">Detalles de la compra directa:</p>
-
-        <div class="buy-summary">
-          <p><strong>Libro:</strong> {{ selectedBook.title }}</p>
-          <p><strong>Formato:</strong> Tapa Blanda</p>
-          <p class="buy-price">Total: ${{ selectedBook.price }} MXN</p>
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn btn-outline" @click="isBuyModalOpen = false">Cancelar</button>
-          <button class="btn btn-accent" @click="confirmPurchase">Procesar Pago</button>
         </div>
       </div>
     </div>
@@ -309,7 +262,6 @@ const confirmPurchase = () => {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-/* ENCABEZADO Y BÚSQUEDA CENTRADA */
 .top-header {
   display: flex;
   flex-direction: column;
@@ -332,7 +284,6 @@ const confirmPurchase = () => {
   font-size: 14px;
 }
 
-/* Búsqueda clara y centrada */
 .search-centered {
   display: flex;
   justify-content: center;
@@ -373,31 +324,6 @@ const confirmPurchase = () => {
   background-color: #3b526f;
 }
 
-/* NAVEGACIÓN INTERNA */
-.module-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 18px;
-  padding: 5px;
-  background-color: #fffde1;
-  border: 1px solid #f2eab4;
-  border-radius: 12px;
-  width: fit-content;
-}
-
-.module-nav-link {
-  display: inline-flex;
-  align-items: center;
-  padding: 9px 15px;
-  border-radius: 8px;
-  color: #4d6787;
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-/* MENSJES Y ALERTAS EN PANTALLA */
 .screen-alert {
   display: flex;
   align-items: center;
@@ -429,7 +355,6 @@ const confirmPurchase = () => {
   color: inherit;
 }
 
-/* BANNER DE PRÉSTAMO ACTIVO */
 .active-loan-banner {
   background-color: #f0fdf4;
   border: 1px solid #bbf7d0;
@@ -463,7 +388,6 @@ const confirmPurchase = () => {
   font-size: 15px;
 }
 
-/* CONTENEDOR PRINCIPAL */
 .module-content {
   width: 100%;
   min-height: 400px;
@@ -519,7 +443,6 @@ const confirmPurchase = () => {
   margin: 0;
 }
 
-/* TARJETA DE BOTONES DE ACCIÓN */
 .book-actions-card {
   padding: 24px;
   background-color: #f8fafc;
@@ -549,11 +472,6 @@ const confirmPurchase = () => {
   padding: 12px 20px;
 }
 
-.btn-icon {
-  font-size: 16px;
-}
-
-/* ESTILOS DE BOTONES */
 .btn {
   border-radius: 10px;
   font-weight: 700;
@@ -587,15 +505,6 @@ const confirmPurchase = () => {
   background-color: #bde0fe;
 }
 
-.btn-accent {
-  background-color: #ffe3c4;
-  color: #633806;
-  border: 1px solid #f3d0a4;
-}
-.btn-accent:hover {
-  background-color: #fcd5a9;
-}
-
 .btn-outline {
   background-color: #ffffff;
   color: #4d6787;
@@ -605,7 +514,6 @@ const confirmPurchase = () => {
   background-color: #f1f5f9;
 }
 
-/* FICHA TÉCNICA Y SINOPSIS */
 .book-details-section {
   border-top: 1px solid #eef2f6;
   padding-top: 24px;
@@ -647,7 +555,6 @@ const confirmPurchase = () => {
   color: #5a6e85;
 }
 
-/* MODALES Y OVERLAYS */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -693,7 +600,6 @@ const confirmPurchase = () => {
   color: #334155;
 }
 
-/* BOTONES DE DÍAS  */
 .duration-options {
   display: flex;
   gap: 10px;
@@ -704,7 +610,7 @@ const confirmPurchase = () => {
   padding: 10px;
   border: 1px solid #cbd5e1;
   background-color: #f1f5f9;
-  color: #334155 !important; /* Mantiene visibilidad completa */
+  color: #334155 !important;
   border-radius: 8px;
   font-weight: 700;
   font-size: 14px;
@@ -722,7 +628,6 @@ const confirmPurchase = () => {
   color: #1e40af !important;
 }
 
-/* INPUT DE FECHA CON FONDO CLARO */
 .light-date-input {
   width: 100%;
   padding: 10px 14px;
@@ -739,7 +644,6 @@ const confirmPurchase = () => {
   border-color: #3b82f6;
 }
 
-/* RESUMEN DE FECHA FINAL */
 .loan-summary {
   background-color: #f0fdf4;
   padding: 12px 16px;
@@ -763,26 +667,6 @@ const confirmPurchase = () => {
   gap: 12px;
 }
 
-.buy-summary {
-  background-color: #f8fafc;
-  padding: 16px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-}
-
-.buy-summary p {
-  margin: 6px 0;
-  color: #334155;
-}
-
-.buy-price {
-  font-size: 18px;
-  font-weight: 800;
-  color: #633806;
-  margin-top: 12px !important;
-}
-
-/* RESPONSIVE */
 @media (max-width: 768px) {
   .book-main-info {
     grid-template-columns: 1fr;

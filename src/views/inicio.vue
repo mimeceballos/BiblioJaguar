@@ -69,6 +69,8 @@ const menuItems = computed(() => {
   }
 
   return [
+    // NUEVO BOTÓN DE INICIO AL PRINCIPIO DE LA LISTA
+    { id: 0, name: 'Inicio', route: '/admin/inicio', level: 3 },
     { id: 1, name: 'Préstamo', route: '/admin/prestamo', level: perms.prestamo },
     { id: 2, name: 'Compra', route: '/admin/compra', level: perms.compra },
     { id: 3, name: 'Devolución', route: '/admin/devolucion', level: perms.devolucion },
